@@ -1,0 +1,37 @@
+"""AI Document Assistant.
+
+Give it some documents, ask questions in plain English, and it finds the
+answer and shows where it came from.
+
+    from docassist import LoaderRegistry, SentenceChunker
+"""
+
+from .chunking import Chunker, SentenceChunker
+from .exceptions import DocAssistError, LoaderError, ValidationError
+from .loaders import DocumentLoader, LoaderRegistry, MarkdownLoader, TextLoader, strip_markdown
+from .models import Chunk, Document, make_doc_id
+from .text import STOP_WORDS, sentences, sentence_spans, stem, tokens
+
+__version__ = "0.1.0"
+
+__all__ = [
+    "Document",
+    "Chunk",
+    "make_doc_id",
+    "DocumentLoader",
+    "TextLoader",
+    "MarkdownLoader",
+    "LoaderRegistry",
+    "strip_markdown",
+    "Chunker",
+    "SentenceChunker",
+    "tokens",
+    "stem",
+    "sentences",
+    "sentence_spans",
+    "STOP_WORDS",
+    "DocAssistError",
+    "LoaderError",
+    "ValidationError",
+    "__version__",
+]

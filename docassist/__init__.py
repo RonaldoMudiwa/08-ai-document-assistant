@@ -10,9 +10,10 @@ from .chunking import Chunker, SentenceChunker
 from .exceptions import DocAssistError, LoaderError, ValidationError
 from .loaders import DocumentLoader, LoaderRegistry, MarkdownLoader, TextLoader, strip_markdown
 from .models import Chunk, Document, make_doc_id
+from .search import BM25Index, SearchHit, SearchIndex
 from .text import STOP_WORDS, sentences, sentence_spans, stem, tokens
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Document",
@@ -25,6 +26,9 @@ __all__ = [
     "strip_markdown",
     "Chunker",
     "SentenceChunker",
+    "SearchIndex",
+    "BM25Index",
+    "SearchHit",
     "tokens",
     "stem",
     "sentences",

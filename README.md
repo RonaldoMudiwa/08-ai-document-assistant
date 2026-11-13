@@ -10,8 +10,9 @@ optional real AI model.
 
 ## Status
 
-Day 1 of 7. Documents and chunks, loaders for .txt and .md files, and
-cutting documents into overlapping chunks. 54 tests.
+Day 2 of 7. Documents and chunks, loaders for .txt and .md files,
+cutting documents into overlapping chunks, and our own BM25 search index
+that ranks chunks for a question. 72 tests.
 
 ## Getting started
 
@@ -75,6 +76,37 @@ for chunk in SentenceChunker(max_words=60, overlap=1).split(doc):
 
 Each chunk remembers where it starts and ends in the document, so
 `doc.text[chunk.start:chunk.end]` gives its text back exactly.
+
+## Searching
+
+```python
+from docassist import BM25Index
+
+index = BM25Index()
+index.add(SentenceChunker().split(doc))
+for hit in index.search("How much is the deposit?", limit=3):
+    print(f"{hit.score:.2f}", hit.matched, hit.chunk.short())
+```
+
+`BM25Index` is written from scratch, with no search library. BM25 is the
+scoring method most search engines started with. For each word in the
+question it asks two things:
+
+1. **Is the word in this chunk, and how often?** More is better, but the
+   fifth time counts for much less than the first. A chunk that says
+   "deposit" five times isn't five times more useful.
+2. **Is the word rare?** In a tenancy agreement "tenant" is everywhere, so
+   it tells you very little. "deposit" only shows up in one place, so it
+   points straight at the right chunk. Rare words score higher.
+
+Long chunks are scored down a little, so they don't win just because they
+contain more words.
+
+Words are cut down before searching: "Deposits", "deposit" and "DEPOSIT"
+all become `deposit`, and little words like "the" and "is" are ignored.
+
+`SearchIndex` is the base class, so a different search method could be
+swapped in later without changing anything that uses it.
 
 ## Week plan
 

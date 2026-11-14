@@ -10,9 +10,9 @@ optional real AI model.
 
 ## Status
 
-Day 2 of 7. Documents and chunks, loaders for .txt and .md files,
-cutting documents into overlapping chunks, and our own BM25 search index
-that ranks chunks for a question. 72 tests.
+Day 3 of 7. Documents and chunks, loaders for .txt and .md files,
+cutting documents into overlapping chunks, our own BM25 search index, and
+answers that quote the best sentences and show their sources. 84 tests.
 
 ## Getting started
 
@@ -107,6 +107,38 @@ all become `deposit`, and little words like "the" and "is" are ignored.
 
 `SearchIndex` is the base class, so a different search method could be
 swapped in later without changing anything that uses it.
+
+## Answers with sources
+
+```python
+from docassist import ExtractiveAnswerer
+
+question = "How much is the deposit?"
+answer = ExtractiveAnswerer().answer(question, index.search(question), {doc.doc_id: doc.title})
+print(answer.render())
+```
+
+```
+The deposit is £1,100. [1] It is protected in a government approved deposit scheme within 30 days. [1]
+
+Sources:
+  [1] Tenancy agreement: "The deposit is £1,100. It is protected in a government approved deposit..."
+```
+
+The `ExtractiveAnswerer` never makes anything up. It goes through the
+sentences in the chunks the search found, picks the ones that share the
+most words with the question, and quotes them. Each one gets a number that
+says where it came from. It's like a student answering with a highlighter
+and page numbers instead of their own words: less smooth, but you can
+always check it.
+
+- If nothing matches, it says so: "I couldn't find anything about that in
+  your documents." It doesn't guess.
+- Overlapping chunks repeat sentences, so each sentence is only quoted once.
+- The same chunk always keeps the same number in one answer.
+
+`AnswerEngine` is the base class. Tomorrow a second engine plugs in that
+uses a real AI model, and nothing else has to change.
 
 ## Week plan
 

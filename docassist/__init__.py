@@ -8,13 +8,23 @@ answer and shows where it came from.
 
 from .answers import NOT_FOUND, Answer, AnswerEngine, ExtractiveAnswerer, Source, SourceList
 from .chunking import Chunker, SentenceChunker
-from .exceptions import DocAssistError, LoaderError, ValidationError
+from .exceptions import DocAssistError, LoaderError, ProviderError, ValidationError
+from .llm import (
+    API_URL,
+    DEFAULT_MODEL,
+    AnthropicProvider,
+    FakeProvider,
+    LLMProvider,
+    Message,
+    post_json,
+)
+from .llm_answerer import SYSTEM_PROMPT, LLMAnswerer, build_prompt
 from .loaders import DocumentLoader, LoaderRegistry, MarkdownLoader, TextLoader, strip_markdown
 from .models import Chunk, Document, make_doc_id
 from .search import BM25Index, SearchHit, SearchIndex
 from .text import STOP_WORDS, sentences, sentence_spans, stem, tokens
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "Answer",
@@ -23,6 +33,16 @@ __all__ = [
     "Source",
     "SourceList",
     "NOT_FOUND",
+    "LLMAnswerer",
+    "build_prompt",
+    "SYSTEM_PROMPT",
+    "LLMProvider",
+    "AnthropicProvider",
+    "FakeProvider",
+    "Message",
+    "post_json",
+    "API_URL",
+    "DEFAULT_MODEL",
     "Document",
     "Chunk",
     "make_doc_id",
@@ -43,6 +63,7 @@ __all__ = [
     "STOP_WORDS",
     "DocAssistError",
     "LoaderError",
+    "ProviderError",
     "ValidationError",
     "__version__",
 ]

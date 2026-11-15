@@ -10,9 +10,10 @@ optional real AI model.
 
 ## Status
 
-Day 3 of 7. Documents and chunks, loaders for .txt and .md files,
-cutting documents into overlapping chunks, our own BM25 search index, and
-answers that quote the best sentences and show their sources. 84 tests.
+Day 4 of 7. Documents and chunks, loaders for .txt and .md files,
+cutting documents into overlapping chunks, our own BM25 search index,
+answers that quote the best sentences with their sources, and optional
+answers written by a real AI model (Claude). 116 tests.
 
 ## Getting started
 
@@ -139,6 +140,56 @@ always check it.
 
 `AnswerEngine` is the base class. Tomorrow a second engine plugs in that
 uses a real AI model, and nothing else has to change.
+
+## Optional: answers from a real AI model
+
+```python
+from docassist import AnthropicProvider, LLMAnswerer
+
+engine = LLMAnswerer(AnthropicProvider.from_env())
+answer = engine.answer(question, index.search(question), titles)
+```
+
+This is called **retrieval augmented generation (RAG)**: look things up
+first, then write. The search finds the right chunks, and only those are
+sent to the model, each with a number. The model is told to:
+
+- use only those extracts, never outside knowledge,
+- put the extract's number after every fact, like `[2]`,
+- say "I couldn't find anything about that in your documents." if the
+  extracts don't answer it.
+
+It's like an open book exam. The model can word the answer nicely, but
+the facts have to come from the book, with page numbers.
+
+A few safety habits:
+
+- **The API key comes from the `ANTHROPIC_API_KEY` environment variable.**
+  It's never written in the code, saved, or printed. Even
+  `repr(provider)` hides it. `.env` is in `.gitignore` too.
+- **No search results means no call**, so you never pay for a question
+  your documents can't answer.
+- **Only the sources the model actually cited are listed**, and made up
+  numbers like `[9]` are ignored.
+
+```powershell
+$env:ANTHROPIC_API_KEY = "your key here"     # Windows PowerShell, this window only
+$env:DOCASSIST_MODEL = "claude-sonnet-5-5"   # optional, this is the default
+```
+
+### Plugs, so tests never go online
+
+`LLMProvider` is the base class with one method, `complete()`. There are
+two plugs:
+
+| Provider | What it does |
+| --- | --- |
+| `AnthropicProvider` | Calls Anthropic's Messages API with `urllib`, no extra library. Clear errors for a bad key, no internet, or an odd reply |
+| `FakeProvider` | Gives back set replies and records what it was sent. Used by every test |
+
+Even the part that sends the web request can be swapped (`post=`), so the
+tests check the exact request without ever going online, and the program
+works fully offline when you don't use the AI model.
 
 ## Week plan
 

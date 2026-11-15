@@ -16,3 +16,7 @@ class ValidationError(DocAssistError):
 
 class LoaderError(DocAssistError):
     """A file couldn't be read, or we don't know how to read that kind."""
+
+
+class ProviderError(DocAssistError):
+    """The AI service couldn't be reached, refused the request, or sent something odd."""

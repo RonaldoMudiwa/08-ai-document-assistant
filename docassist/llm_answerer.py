@@ -46,8 +46,8 @@ class LLMAnswerer(AnswerEngine):
         self.provider = provider
         self.max_extracts = max_extracts
 
-    def answer(self, question: str, hits: Sequence[SearchHit],
-               titles: Mapping[str, str]) -> Answer:
+    def answer(self, question: str, hits: Sequence[SearchHit], titles: Mapping[str, str],
+               history: Sequence[Message] = ()) -> Answer:
         hits = list(hits)[: self.max_extracts]
         # Nothing found means nothing to go on, so don't pay for a call.
         if not hits:
@@ -58,8 +58,9 @@ class LLMAnswerer(AnswerEngine):
             number = numbering.number_for(hit)
             extracts.append((number, titles.get(hit.chunk.doc_id, "Unknown document"),
                              hit.chunk.text))
-        reply = self.provider.complete(SYSTEM_PROMPT,
-                                       [Message("user", build_prompt(question, extracts))])
+        # Earlier turns go first, so the model knows what "it" or "that" means.
+        messages = [*history, Message("user", build_prompt(question, extracts))]
+        reply = self.provider.complete(SYSTEM_PROMPT, messages)
         if NOT_FOUND.lower() in reply.lower():
             return Answer.not_found(question)
         # Only list the sources the model actually used, and ignore made up numbers.

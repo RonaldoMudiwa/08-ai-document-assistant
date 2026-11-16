@@ -7,8 +7,16 @@ answer and shows where it came from.
 """
 
 from .answers import NOT_FOUND, Answer, AnswerEngine, ExtractiveAnswerer, Source, SourceList
+from .assistant import DocumentAssistant, default_loaders
 from .chunking import Chunker, SentenceChunker
-from .exceptions import DocAssistError, LoaderError, ProviderError, ValidationError
+from .exceptions import (
+    DocAssistError,
+    LoaderError,
+    NotFoundError,
+    ProviderError,
+    ValidationError,
+)
+from .history import Conversation, Turn
 from .llm import (
     API_URL,
     DEFAULT_MODEL,
@@ -21,12 +29,22 @@ from .llm import (
 from .llm_answerer import SYSTEM_PROMPT, LLMAnswerer, build_prompt
 from .loaders import DocumentLoader, LoaderRegistry, MarkdownLoader, TextLoader, strip_markdown
 from .models import Chunk, Document, make_doc_id
+from .pdf import PdfLoader
 from .search import BM25Index, SearchHit, SearchIndex
+from .storage import DocumentStore, MemoryStore, SqliteStore
 from .text import STOP_WORDS, sentences, sentence_spans, stem, tokens
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
+    "DocumentAssistant",
+    "default_loaders",
+    "Conversation",
+    "Turn",
+    "DocumentStore",
+    "MemoryStore",
+    "SqliteStore",
+    "PdfLoader",
     "Answer",
     "AnswerEngine",
     "ExtractiveAnswerer",
@@ -64,6 +82,7 @@ __all__ = [
     "DocAssistError",
     "LoaderError",
     "ProviderError",
+    "NotFoundError",
     "ValidationError",
     "__version__",
 ]

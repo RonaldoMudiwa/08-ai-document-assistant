@@ -20,3 +20,7 @@ class LoaderError(DocAssistError):
 
 class ProviderError(DocAssistError):
     """The AI service couldn't be reached, refused the request, or sent something odd."""
+
+
+class NotFoundError(DocAssistError):
+    """No document matches what was asked for."""

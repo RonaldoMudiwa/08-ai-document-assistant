@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 from .exceptions import ValidationError
+from .llm import Message
 from .search import SearchHit
 from .text import sentences, tokens
 
@@ -80,9 +81,13 @@ class AnswerEngine(ABC):
     """Answers a question using the chunks a search found."""
 
     @abstractmethod
-    def answer(self, question: str, hits: Sequence[SearchHit],
-               titles: Mapping[str, str]) -> Answer:
-        """titles maps each doc_id to its document's title, for the sources."""
+    def answer(self, question: str, hits: Sequence[SearchHit], titles: Mapping[str, str],
+               history: Sequence[Message] = ()) -> Answer:
+        """titles maps each doc_id to its document's title, for the sources.
+
+        history is the conversation so far, oldest first. Engines that can't
+        use it just ignore it.
+        """
 
 
 class ExtractiveAnswerer(AnswerEngine):
@@ -93,8 +98,8 @@ class ExtractiveAnswerer(AnswerEngine):
             raise ValidationError("max_sentences must be at least 1.")
         self.max_sentences = max_sentences
 
-    def answer(self, question: str, hits: Sequence[SearchHit],
-               titles: Mapping[str, str]) -> Answer:
+    def answer(self, question: str, hits: Sequence[SearchHit], titles: Mapping[str, str],
+               history: Sequence[Message] = ()) -> Answer:
         wanted = set(tokens(question))
         candidates = []
         seen: set[str] = set()

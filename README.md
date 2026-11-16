@@ -10,10 +10,30 @@ optional real AI model.
 
 ## Status
 
-Day 4 of 7. Documents and chunks, loaders for .txt and .md files,
-cutting documents into overlapping chunks, our own BM25 search index,
-answers that quote the best sentences with their sources, and optional
-answers written by a real AI model (Claude). 116 tests.
+Day 5 of 7. Loaders for .txt, .md and .pdf files, overlapping chunks,
+our own BM25 search index, answers that quote the best sentences with
+their sources, optional answers from a real AI model (Claude), saving
+everything in SQLite, and follow up questions. 160 tests.
+
+## Putting it together
+
+```python
+from docassist import Conversation, DocumentAssistant, SqliteStore
+
+assistant = DocumentAssistant(SqliteStore("data/documents.db"))
+assistant.add_file("tenancy_agreement.md")
+assistant.add_file("course_notes.pdf")
+
+chat = Conversation()
+print(assistant.ask("How much is the deposit?", chat).render())
+print(assistant.ask("Is it protected?", chat).render())    # "it" = the deposit
+```
+
+`DocumentAssistant` is the front desk. You hand it files and questions,
+and behind the desk it uses the loaders, the chunker, the store, the
+search index and an answer engine. Every one of those is passed in (or a
+sensible default is used), so any of them can be swapped. That's how the
+tests run with no files and no internet.
 
 ## Getting started
 
@@ -51,6 +71,11 @@ print(doc.title, doc.word_count)
 | --- | --- | --- |
 | `TextLoader` | `.txt` | The file name, tidied up |
 | `MarkdownLoader` | `.md`, `.markdown` | The first `# heading`, and the markdown symbols are removed |
+| `PdfLoader` | `.pdf` | The title saved inside the PDF, or the file name |
+
+`PdfLoader` uses the pypdf library to pull the text out of each page. A
+scanned PDF is just a picture of a page, with no text in it, so it gets a
+clear error instead of an empty document.
 
 Each loader is a small class behind the `DocumentLoader` base class. The
 `LoaderRegistry` looks at the file's ending and passes it to the right
@@ -190,6 +215,38 @@ two plugs:
 Even the part that sends the web request can be swapped (`post=`), so the
 tests check the exact request without ever going online, and the program
 works fully offline when you don't use the AI model.
+
+## Saving documents
+
+`DocumentStore` is the base class, with two versions:
+
+| Store | Keeps things | Used for |
+| --- | --- | --- |
+| `MemoryStore` | In a dict, gone when the program ends | Tests and the demo |
+| `SqliteStore` | In a SQLite database file | Real use, so documents are still there tomorrow |
+
+Two tables, `documents` and `chunks`. Deleting a document deletes its
+chunks too (`ON DELETE CASCADE`), and adding a document with its chunks is
+one transaction: all of it is saved, or none of it. Every test runs
+against both stores.
+
+The search index itself isn't saved. It's rebuilt from the saved chunks
+when the program starts. That takes a moment, and it means the index can
+never get out of step with the database.
+
+## Follow up questions
+
+If you ask "How much is the deposit?" and then "Is it protected?", the
+second question doesn't say what "it" is. A `Conversation` remembers the
+last few turns (5 by default):
+
+- **For search:** a short follow up (fewer than 3 real words) is searched
+  together with the question before it.
+- **For the AI model:** the earlier questions and answers are sent first,
+  so it knows "it" means the deposit.
+
+It uses a `deque` with a maximum length, so the oldest turn drops off by
+itself, like a queue at a till.
 
 ## Week plan
 

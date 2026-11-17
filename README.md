@@ -10,10 +10,11 @@ optional real AI model.
 
 ## Status
 
-Day 5 of 7. Loaders for .txt, .md and .pdf files, overlapping chunks,
+Day 6 of 7. Loaders for .txt, .md and .pdf files, overlapping chunks,
 our own BM25 search index, answers that quote the best sentences with
 their sources, optional answers from a real AI model (Claude), saving
-everything in SQLite, and follow up questions. 160 tests.
+everything in SQLite, follow up questions, a command line and sample
+documents. 182 tests.
 
 ## Putting it together
 
@@ -43,6 +44,38 @@ python -m venv .venv
 pip install -r requirements.txt
 pytest --cov
 ```
+
+## Using it
+
+```bash
+python -m docassist demo                          # try it with the sample documents
+python -m docassist add tenancy.md notes/         # add files, or every file in a folder
+python -m docassist list                          # what's been added
+python -m docassist ask How much is the deposit?
+python -m docassist chat                          # one question after another
+python -m docassist remove "Tenancy Agreement"    # by title or the start of its id
+python -m docassist --ai ask "Can I end the tenancy early?"   # a real AI model writes it
+```
+
+| Command | What it does |
+| --- | --- |
+| `demo` | Loads the three sample documents in memory and asks some example questions. Saves nothing |
+| `add <files or folders>` | Adds documents. Folders are searched for .txt, .md and .pdf files. A bad file is skipped and the rest still go in |
+| `list` | Every document with its id, word count and number of chunks |
+| `ask <question>` | Answers one question, with sources |
+| `chat` | Keeps asking until you type `quit`. Follow ups like "is it protected?" work. `new` starts over |
+| `remove <title or id>` | Removes a document and its chunks |
+
+`--db` picks another database file (default `data/documents.db`) and
+`--ai` uses the AI model instead of the offline answers.
+
+The sample documents in `docassist/samples/` (a tenancy agreement, a
+payslip guide and some course notes) are **made up**. The names, address
+and amounts aren't real.
+
+Each command is its own small class with a `name`, `help` and `run`, the
+same Command pattern as the last few weeks. `main()` returns 0 or 1 and
+prints `Error: ...` for anything that goes wrong, instead of a crash.
 
 ## Documents and chunks
 

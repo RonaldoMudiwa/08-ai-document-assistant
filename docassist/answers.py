@@ -58,6 +58,15 @@ class Answer:
         return "\n".join(lines)
 
 
+def shorten(text: str, length: int = 80) -> str:
+    return text if len(text) <= length else text[: length - 3].rstrip() + "..."
+
+
+def looks_like_heading(sentence: str) -> bool:
+    """A few words with no full stop, like "Deposit" or "Ending the tenancy"."""
+    return len(sentence.split()) <= 5 and not sentence.endswith((".", "!", "?"))
+
+
 class SourceList:
     """Gives each chunk a number the first time it's used, so [1] always means the same place."""
 
@@ -65,12 +74,14 @@ class SourceList:
         self._titles = titles
         self._numbers: dict[str, Source] = {}
 
-    def number_for(self, hit: SearchHit) -> int:
+    def number_for(self, hit: SearchHit, snippet: str = "") -> int:
+        """The chunk's number. snippet is the bit to show for it (the chunk's start if not given)."""
         chunk = hit.chunk
         if chunk.chunk_id not in self._numbers:
             self._numbers[chunk.chunk_id] = Source(
                 len(self._numbers) + 1, chunk.doc_id,
-                self._titles.get(chunk.doc_id, "Unknown document"), chunk.chunk_id, chunk.short())
+                self._titles.get(chunk.doc_id, "Unknown document"), chunk.chunk_id,
+                shorten(snippet) if snippet else chunk.short())
         return self._numbers[chunk.chunk_id].number
 
     def sources(self) -> tuple[Source, ...]:
@@ -106,7 +117,8 @@ class ExtractiveAnswerer(AnswerEngine):
         for rank, hit in enumerate(hits):
             for position, sentence in enumerate(sentences(hit.chunk.text)):
                 # Overlapping chunks repeat sentences, so only keep the first copy.
-                if sentence in seen:
+                # Headings aren't answers, so skip those too.
+                if sentence in seen or looks_like_heading(sentence):
                     continue
                 seen.add(sentence)
                 shared = len(wanted & set(tokens(sentence)))
@@ -117,6 +129,6 @@ class ExtractiveAnswerer(AnswerEngine):
             return Answer.not_found(question)
         candidates.sort(key=lambda c: c[0])
         sources = SourceList(titles)
-        parts = [f"{sentence} [{sources.number_for(hit)}]"
+        parts = [f"{sentence} [{sources.number_for(hit, sentence)}]"
                  for _, sentence, hit in candidates[: self.max_sentences]]
         return Answer(question, " ".join(parts), sources.sources())

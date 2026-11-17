@@ -103,3 +103,15 @@ def test_source_label():
 def test_bad_setting():
     with pytest.raises(ValidationError):
         ExtractiveAnswerer(max_sentences=0)
+
+
+def test_headings_are_not_quoted():
+    hits = [hit("d", 0, "Deposit\n\nThe deposit is £500.")]
+    answer = ExtractiveAnswerer().answer("deposit", hits, {"d": "House"})
+    assert answer.text == "The deposit is £500. [1]"
+
+
+def test_the_source_shows_the_quoted_sentence():
+    hits = [hit("d", 0, "Intro text here. The deposit is £500.")]
+    answer = ExtractiveAnswerer().answer("deposit", hits, {"d": "House"})
+    assert answer.sources[0].snippet == "The deposit is £500."

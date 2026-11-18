@@ -10,31 +10,19 @@ optional real AI model.
 
 ## Status
 
-Day 6 of 7. Loaders for .txt, .md and .pdf files, overlapping chunks,
-our own BM25 search index, answers that quote the best sentences with
-their sources, optional answers from a real AI model (Claude), saving
-everything in SQLite, follow up questions, a command line and sample
-documents. 182 tests.
+Finished. Reads .txt, .md and .pdf files, cuts them into overlapping
+chunks, searches them with our own BM25 index, and answers by quoting the
+best sentences with their sources. Can optionally have a real AI model
+(Claude) write the answers from the same sources. Saves everything in
+SQLite, understands follow up questions, and has a command line with a
+demo. 188 tests with 100% coverage. Version 1.0.0.
 
-## Putting it together
+## The idea
 
-```python
-from docassist import Conversation, DocumentAssistant, SqliteStore
-
-assistant = DocumentAssistant(SqliteStore("data/documents.db"))
-assistant.add_file("tenancy_agreement.md")
-assistant.add_file("course_notes.pdf")
-
-chat = Conversation()
-print(assistant.ask("How much is the deposit?", chat).render())
-print(assistant.ask("Is it protected?", chat).render())    # "it" = the deposit
-```
-
-`DocumentAssistant` is the front desk. You hand it files and questions,
-and behind the desk it uses the loaders, the chunker, the store, the
-search index and an answer engine. Every one of those is passed in (or a
-sensible default is used), so any of them can be swapped. That's how the
-tests run with no files and no internet.
+Think of a librarian who has read all your paperwork. You ask "how much
+notice do I have to give?" and they don't hand you the whole tenancy
+agreement. They open it at the right page, read you the line, and show you
+where it is so you can check. That's what this program does.
 
 ## Getting started
 
@@ -57,6 +45,17 @@ python -m docassist remove "Tenancy Agreement"    # by title or the start of its
 python -m docassist --ai ask "Can I end the tenancy early?"   # a real AI model writes it
 ```
 
+```
+> How much is the deposit?
+The deposit is £1,100. [1] It is protected in a government approved tenancy deposit scheme within 30 days of being paid. [1] ...
+
+> Is it protected?
+It is protected in a government approved tenancy deposit scheme within 30 days of being paid. [1]
+
+> What is the wifi password?
+I couldn't find anything about that in your documents.
+```
+
 | Command | What it does |
 | --- | --- |
 | `demo` | Loads the three sample documents in memory and asks some example questions. Saves nothing |
@@ -76,6 +75,26 @@ and amounts aren't real.
 Each command is its own small class with a `name`, `help` and `run`, the
 same Command pattern as the last few weeks. `main()` returns 0 or 1 and
 prints `Error: ...` for anything that goes wrong, instead of a crash.
+
+## Putting it together
+
+```python
+from docassist import Conversation, DocumentAssistant, SqliteStore
+
+assistant = DocumentAssistant(SqliteStore("data/documents.db"))
+assistant.add_file("tenancy_agreement.md")
+assistant.add_file("course_notes.pdf")
+
+chat = Conversation()
+print(assistant.ask("How much is the deposit?", chat).render())
+print(assistant.ask("Is it protected?", chat).render())    # "it" = the deposit
+```
+
+`DocumentAssistant` is the front desk. You hand it files and questions,
+and behind the desk it uses the loaders, the chunker, the store, the
+search index and an answer engine. Every one of those is passed in (or a
+sensible default is used), so any of them can be swapped. That's how the
+tests run with no files and no internet.
 
 ## Documents and chunks
 
@@ -178,10 +197,11 @@ print(answer.render())
 ```
 
 ```
-The deposit is £1,100. [1] It is protected in a government approved deposit scheme within 30 days. [1]
+The deposit is £1,100. [1] It is protected in a government approved tenancy deposit scheme within 30 days of being paid. [1] The deposit is returned within 10 days of the end of the tenancy, minus any agreed deductions for damage or unpaid rent. [2]
 
 Sources:
-  [1] Tenancy agreement: "The deposit is £1,100. It is protected in a government approved deposit..."
+  [1] Tenancy Agreement: "The deposit is £1,100."
+  [2] Tenancy Agreement: "The deposit is returned within 10 days of the end of the tenancy, minus any a..."
 ```
 
 The `ExtractiveAnswerer` never makes anything up. It goes through the
@@ -195,9 +215,11 @@ always check it.
   your documents." It doesn't guess.
 - Overlapping chunks repeat sentences, so each sentence is only quoted once.
 - The same chunk always keeps the same number in one answer.
+- Headings like "Deposit" aren't sentences, so they're never quoted.
+- Each source shows the sentence that was quoted, so you can find it.
 
-`AnswerEngine` is the base class. Tomorrow a second engine plugs in that
-uses a real AI model, and nothing else has to change.
+`AnswerEngine` is the base class. The AI answers below are a second engine
+that plugs into the same place, so nothing else had to change.
 
 ## Optional: answers from a real AI model
 
@@ -260,8 +282,8 @@ works fully offline when you don't use the AI model.
 
 Two tables, `documents` and `chunks`. Deleting a document deletes its
 chunks too (`ON DELETE CASCADE`), and adding a document with its chunks is
-one transaction: all of it is saved, or none of it. Every test runs
-against both stores.
+one transaction: all of it is saved, or none of it. Every storage
+test runs against both stores.
 
 The search index itself isn't saved. It's rebuilt from the saved chunks
 when the program starts. That takes a moment, and it means the index can
@@ -280,6 +302,118 @@ last few turns (5 by default):
 
 It uses a `deque` with a maximum length, so the oldest turn drops off by
 itself, like a queue at a till.
+
+## What it can't do
+
+Being honest about the limits matters as much as the features:
+
+- **The offline answers match words, not meaning.** Ask "Can I keep a
+  cat?" and it quotes the payslip guide ("Keep them for at least a
+  year...") instead of the line about pets, because it doesn't
+  know a cat is a pet. "Am I allowed to have pets?" works, because it uses
+  the same words as the document. With `--ai`, the model won't pass off an
+  unrelated sentence as an answer, but it can still only use what the
+  search found.
+- **The word cutting is rough.** "policies" becomes "policy", but
+  "running" doesn't become "run".
+- **Scanned PDFs can't be read.** They're pictures, so there's no text.
+  That would need OCR (reading text from pictures).
+- **The AI answers haven't been tried live yet.** The tests check the
+  exact request with a fake. The first real run needs my own API key.
+
+## How it's built
+
+```
+            cli.py  (Command classes: demo, add, list, ask, chat, remove)
+               |
+        DocumentAssistant  (the front desk)
+     /       |        |          \            \
+LoaderRegistry  Chunker  DocumentStore  SearchIndex   AnswerEngine
+ TextLoader   Sentence-  MemoryStore    BM25Index     ExtractiveAnswerer
+ MarkdownLoader Chunker  SqliteStore                  LLMAnswerer
+ PdfLoader                                                 |
+                                                      LLMProvider
+                                                 AnthropicProvider, FakeProvider
+```
+
+- **Abstract base classes as plugs:** `DocumentLoader`, `Chunker`,
+  `DocumentStore`, `SearchIndex`, `AnswerEngine` and `LLMProvider`. Each
+  has more than one version, and the rest of the program only talks to the
+  base class.
+- **Dependency injection:** the assistant is handed its store, index,
+  chunker, loaders and engine, and the CLI is handed how to read typed
+  lines and how to make the AI provider. That's why every test runs with
+  no internet and no typing.
+- **Strategy pattern:** offline or AI answers, memory or SQLite storage,
+  chosen when the program starts.
+- **Registry:** `LoaderRegistry` picks a loader by file ending, and new
+  ones can be registered.
+- **Command pattern** for the command line, like the last few weeks.
+- **Frozen dataclasses** (`Document`, `Chunk`, `SearchHit`, `Answer`,
+  `Source`, `Message`) that check their own values and can't change.
+- **One error family:** everything raises a `DocAssistError`, so the
+  command line can show `Error: ...` instead of crashing.
+
+## Project layout
+
+```
+docassist/
+    models.py        Document and Chunk
+    loaders.py       DocumentLoader, TextLoader, MarkdownLoader, LoaderRegistry
+    pdf.py           PdfLoader
+    text.py          words, stop words, sentences
+    chunking.py      Chunker, SentenceChunker
+    search.py        SearchIndex, BM25Index, SearchHit
+    answers.py       AnswerEngine, ExtractiveAnswerer, Answer, Source
+    llm.py           LLMProvider, AnthropicProvider, FakeProvider, Message
+    llm_answerer.py  LLMAnswerer and the prompt
+    storage.py       DocumentStore, MemoryStore, SqliteStore
+    history.py       Conversation
+    assistant.py     DocumentAssistant
+    cli.py           the command line
+    exceptions.py    DocAssistError and friends
+    samples/         three made up documents for the demo
+tests/               one test file per module, plus end to end tests
+    pdf_maker.py     builds small real PDFs for the tests
+```
+
+## Tests
+
+```bash
+pytest --cov
+```
+
+188 tests, 100% line and branch coverage. `.coveragerc` makes the run
+fail if coverage drops below 95%.
+
+- No test goes online. The AI model is a `FakeProvider`, and even the web
+  request itself is swapped for a fake that records what would be sent.
+- The PDF tests build small real PDFs while they run, so no PDFs are kept
+  in the repo.
+- The end to end tests drive the real command line with a real database
+  file: add a folder, restart, ask, chat with follow ups, remove.
+- Writing the tests found real problems: after a document was removed,
+  "How much is the deposit?" still got an answer from the payslip guide
+  just because both used the word "much". Question words like "much" and
+  "many" are now ignored. Running the demo showed headings being quoted as
+  answers, so those are skipped now too.
+
+## What I learned this week
+
+- **How search engines rank results** with BM25, and why rare words matter
+  more than common ones.
+- **Retrieval augmented generation (RAG):** search first, then let a model
+  write only from what was found, with sources. This is how most real
+  "chat with your documents" tools work.
+- **Calling an AI API safely:** keys from environment variables, never in
+  code; hiding the key from `repr`; not paying for questions that can't be
+  answered; checking the sources the model gives back.
+- **Testing code that talks to the internet** by putting the network
+  behind a plug and using fakes.
+- **Reading PDFs**, and why scanned ones have no text.
+- **Remembering a conversation** with a `deque`, so follow ups work.
+- **Being honest about limits.** Matching words isn't the same as
+  understanding meaning, and the README says so.
 
 ## Week plan
 

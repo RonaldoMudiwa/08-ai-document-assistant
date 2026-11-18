@@ -34,7 +34,7 @@ from .search import BM25Index, SearchHit, SearchIndex
 from .storage import DocumentStore, MemoryStore, SqliteStore
 from .text import STOP_WORDS, sentences, sentence_spans, stem, tokens
 
-__version__ = "0.5.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "DocumentAssistant",
